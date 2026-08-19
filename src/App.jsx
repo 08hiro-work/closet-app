@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Plus, X, Star, Shirt, Camera, Pencil, Trash2, Check, Users, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { Plus, X, Star, Shirt, Camera, Pencil, Trash2, Check, Users, ChevronDown, ChevronUp, Sparkles, CloudSun } from "lucide-react";
 
 const THEMES = {
   natural: { name: "ナチュラル", fontDisplay: "'Shippori Mincho', serif", fontBody: "'Zen Kaku Gothic New', sans-serif", stone: "#E8ECE1", paper: "#FBFAF5", ink: "#262420", inkSoft: "#6B6A62", accent: "#3D5A80", accentSoft: "#DCE5EE", mustard: "#C68E17", danger: "#B5541E", line: "#D8D9CE", radius: "10px", cardRadius: "10px" },
@@ -20,7 +20,6 @@ const CATEGORIES = [
   { id: "accessory", label: "小物" },
 ];
 
-// hue: null は無彩色。warmCool: パーソナルカラー簡易分類(warm=イエベ向き / cool=ブルベ向き / neutral=どちらでも)
 const COLOR_OPTIONS = [
   { id: "white", label: "白", hex: "#FFFFFF", hue: null, group: "neutral", warmCool: "neutral" },
   { id: "black", label: "黒", hex: "#2B2B2B", hue: null, group: "neutral", warmCool: "neutral" },
@@ -63,6 +62,20 @@ const FORTUNE_MESSAGES = [
   "今日はこの色に助けられる予感",
 ];
 
+const RAIN_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99]);
+const SNOW_CODES = new Set([71, 73, 75, 77, 85, 86]);
+function weatherInfo(code) {
+  if (code === 0) return { label: "快晴", emoji: "☀️" };
+  if (code === 1) return { label: "晴れ", emoji: "🌤️" };
+  if (code === 2) return { label: "晴れ時々曇り", emoji: "⛅" };
+  if (code === 3) return { label: "曇り", emoji: "☁️" };
+  if (code === 45 || code === 48) return { label: "霧", emoji: "🌫️" };
+  if (SNOW_CODES.has(code)) return { label: "雪", emoji: "❄️" };
+  if (code === 95 || code === 96 || code === 99) return { label: "雷雨", emoji: "⛈️" };
+  if (RAIN_CODES.has(code)) return { label: "雨", emoji: "🌧️" };
+  return { label: "―", emoji: "🌡️" };
+}
+
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function yearsUsed(dateStr) {
   if (!dateStr) return null;
@@ -85,11 +98,7 @@ function colorLabel(id) { return colorMeta(id)?.label || ""; }
 function categoryLabel(id) { return CATEGORIES.find((c) => c.id === id)?.label || ""; }
 function personalColorLabel(id) { return PERSONAL_COLOR_OPTIONS.find((p) => p.id === id)?.label || "未設定"; }
 function yen(n) { return `¥${Number(n).toLocaleString()}`; }
-
-function hueDistance(a, b) {
-  const d = Math.abs(a - b) % 360;
-  return d > 180 ? 360 - d : d;
-}
+function hueDistance(a, b) { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
 function isCompatible(colorIdA, colorIdB) {
   const a = colorMeta(colorIdA), b = colorMeta(colorIdB);
   if (!a || !b) return { ok: false };
@@ -99,19 +108,13 @@ function isCompatible(colorIdA, colorIdB) {
   if (d >= 150) return { ok: true, type: "complementary" };
   return { ok: false };
 }
-// パーソナルカラーとの相性(neutralはどちらとも合う扱い)
 function suitsPersonalColor(colorId, personalColor) {
   if (!personalColor || personalColor === "none") return true;
   const c = colorMeta(colorId);
   if (!c) return false;
   return c.warmCool === "neutral" || c.warmCool === personalColor;
 }
-function seedNumber(str) {
-  let h = 0;
-  for (const ch of str) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return h;
-}
-
+function seedNumber(str) { let h = 0; for (const ch of str) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; }
 function sortItems(items, sortBy) {
   const copy = [...items];
   if (sortBy === "favorite") return copy.sort((a, b) => b.favorite - a.favorite);
@@ -120,7 +123,6 @@ function sortItems(items, sortBy) {
   if (sortBy === "wornMost") return copy.sort((a, b) => (b.wearLog?.length || 0) - (a.wearLog?.length || 0));
   return copy.sort((a, b) => b.id - a.id);
 }
-
 const selectStyle = (theme) => ({ padding: "7px 10px", borderRadius: 6, border: `1px solid ${theme.line}`, fontFamily: theme.fontBody, fontSize: 13, color: theme.ink, background: "#FFFFFF" });
 
 function Tag({ theme, children }) {
@@ -168,11 +170,7 @@ function MemberManageModal({ theme, members, onAdd, onDelete, onUpdatePersonalCo
           {members.map((m) => (
             <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", border: `1px solid ${theme.line}`, borderRadius: 6, gap: 8 }}>
               <span style={{ fontSize: 13, color: theme.ink, flex: 1 }}>{m.name}</span>
-              <select
-                value={m.personalColor || "none"}
-                onChange={(e) => onUpdatePersonalColor(m.id, e.target.value)}
-                style={{ fontSize: 12, padding: "4px 6px", borderRadius: 6, border: `1px solid ${theme.line}`, fontFamily: theme.fontBody, background: "#FFFFFF" }}
-              >
+              <select value={m.personalColor || "none"} onChange={(e) => onUpdatePersonalColor(m.id, e.target.value)} style={{ fontSize: 12, padding: "4px 6px", borderRadius: 6, border: `1px solid ${theme.line}`, fontFamily: theme.fontBody, background: "#FFFFFF" }}>
                 {PERSONAL_COLOR_OPTIONS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
               {members.length > 1 && <button onClick={() => onDelete(m.id)} aria-label="削除" style={{ background: "transparent", border: "none", cursor: "pointer", color: theme.inkSoft }}><Trash2 size={14} /></button>}
@@ -184,6 +182,154 @@ function MemberManageModal({ theme, members, onAdd, onDelete, onUpdatePersonalCo
           <button onClick={() => { if (name.trim()) { onAdd(name.trim()); setName(""); } }} style={{ padding: "8px 14px", borderRadius: 6, border: "none", background: theme.accent, color: "#FFFFFF", fontFamily: theme.fontBody, fontSize: 13, cursor: "pointer" }}>追加</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function WeatherPanel({ theme, items, members, scopeMemberId }) {
+  const scopeItems = scopeMemberId === "all" ? items : items.filter((i) => i.memberId === scopeMemberId);
+  const [status, setStatus] = useState("pending"); // pending | granted | denied | error
+  const [errorMsg, setErrorMsg] = useState("");
+  const [daily, setDaily] = useState(null);
+  const [locationLabel, setLocationLabel] = useState("");
+
+  async function fetchLocationLabel(latitude, longitude) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=ja&zoom=10`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const addr = data.address || {};
+      const pref = addr.state || "";
+      const city = addr.city || addr.town || addr.village || addr.county || "";
+      setLocationLabel([pref, city].filter(Boolean).join(""));
+    } catch (e) {
+      setLocationLabel("");
+    }
+  }
+
+  function fetchWeather() {
+    if (!navigator.geolocation) {
+      setStatus("error");
+      setErrorMsg("このブラウザは位置情報に対応していません。");
+      return;
+    }
+    setStatus("pending");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7`;
+          const res = await fetch(url);
+          const data = await res.json();
+          setDaily(data.daily);
+          setStatus("granted");
+          fetchLocationLabel(latitude, longitude);
+        } catch (e) {
+          setStatus("error");
+          setErrorMsg("天気情報の取得に失敗しました。");
+        }
+      },
+      () => {
+        setStatus("denied");
+        setErrorMsg("位置情報の利用が許可されませんでした。ブラウザの設定から位置情報を許可してください。");
+      }
+    );
+  }
+
+  useEffect(() => { fetchWeather(); }, []);
+
+  const suggestion = useMemo(() => {
+    if (!daily) return null;
+    const maxT = daily.temperature_2m_max[0];
+    const code = daily.weathercode[0];
+    const rain = RAIN_CODES.has(code);
+    const needOuter = maxT < 18;
+
+    const tops = scopeItems.filter((i) => i.category === "top");
+    const bottoms = scopeItems.filter((i) => i.category === "bottom");
+    const outers = scopeItems.filter((i) => i.category === "outer");
+
+    let combo = null;
+    for (const top of tops) {
+      const bottom = bottoms.find((b) => isCompatible(top.color, b.color).ok);
+      if (bottom) { combo = { top, bottom }; break; }
+    }
+    if (combo && needOuter && outers.length > 0) {
+      const outer = outers.find((o) => isCompatible(combo.top.color, o.color).ok) || outers[0];
+      combo.outer = outer;
+    }
+
+    let advice = "";
+    if (maxT >= 28) advice = "今日は暑くなりそうです。軽装がおすすめです。";
+    else if (maxT >= 18) advice = "過ごしやすい気温です。アウターは軽めでも良さそうです。";
+    else if (maxT >= 10) advice = "肌寒くなりそうです。アウターを1枚持っておくと安心です。";
+    else advice = "冷え込みそうです。しっかり防寒しましょう。";
+    if (rain) advice += " 雨の予報なので、濡れても気にならない服・傘をお忘れなく。";
+
+    return { combo, advice, maxT, minT: daily.temperature_2m_min[0], rain };
+  }, [daily, scopeItems]);
+
+  const sectionTitle = { fontFamily: theme.fontDisplay, fontSize: 15, color: theme.ink, margin: "0 0 10px" };
+  const sectionBox = { background: theme.paper, border: `1px solid ${theme.line}`, borderRadius: theme.radius, padding: 16, marginBottom: 14 };
+  const smallText = { fontSize: 12.5, color: theme.inkSoft, fontFamily: theme.fontBody, lineHeight: 1.7 };
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      {status === "pending" && <div style={{ ...sectionBox, textAlign: "center" }}><div style={smallText}>天気情報を取得中...</div></div>}
+
+      {(status === "denied" || status === "error") && (
+        <div style={sectionBox}>
+          <div style={{ ...smallText, marginBottom: 10 }}>{errorMsg}</div>
+          <button onClick={fetchWeather} style={{ padding: "7px 14px", borderRadius: 6, border: `1px solid ${theme.line}`, background: "#FFFFFF", color: theme.inkSoft, fontFamily: theme.fontBody, fontSize: 12, cursor: "pointer" }}>もう一度試す</button>
+        </div>
+      )}
+
+      {status === "granted" && daily && (
+        <>
+          <div style={sectionBox}>
+            <h3 style={sectionTitle}>今週の天気{locationLabel && `(${locationLabel})`}</h3>
+            <div style={{ display: "flex", overflowX: "auto", gap: 10, paddingBottom: 4 }}>
+              {daily.time.map((d, idx) => {
+                const info = weatherInfo(daily.weathercode[idx]);
+                const label = new Date(d).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" });
+                return (
+                  <div key={d} style={{ minWidth: 64, textAlign: "center", flexShrink: 0 }}>
+                    <div style={{ fontSize: 11, color: theme.inkSoft, fontFamily: theme.fontBody, marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 22, marginBottom: 4 }}>{info.emoji}</div>
+                    <div style={{ fontSize: 11, color: theme.ink, fontFamily: theme.fontBody }}>{Math.round(daily.temperature_2m_max[idx])}°</div>
+                    <div style={{ fontSize: 11, color: theme.inkSoft, fontFamily: theme.fontBody }}>{Math.round(daily.temperature_2m_min[idx])}°</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {suggestion && (
+            <div style={sectionBox}>
+              <h3 style={sectionTitle}>今日の天気に合わせたコーデ</h3>
+              <div style={{ ...smallText, marginBottom: 10 }}>{suggestion.advice}</div>
+              {suggestion.combo ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <Swatch theme={theme} colorId={suggestion.combo.top.color} size={18} />
+                  <span style={smallText}>{colorLabel(suggestion.combo.top.color)}のトップス</span>
+                  <span style={{ color: theme.inkSoft, fontSize: 12 }}>×</span>
+                  <Swatch theme={theme} colorId={suggestion.combo.bottom.color} size={18} />
+                  <span style={smallText}>{colorLabel(suggestion.combo.bottom.color)}のボトムス</span>
+                  {suggestion.combo.outer && (
+                    <>
+                      <span style={{ color: theme.inkSoft, fontSize: 12 }}>+</span>
+                      <Swatch theme={theme} colorId={suggestion.combo.outer.color} size={18} />
+                      <span style={smallText}>{colorLabel(suggestion.combo.outer.color)}のアウター</span>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div style={smallText}>トップスとボトムスを登録すると、天気に合わせたコーデを提案します。</div>
+              )}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -206,7 +352,6 @@ function InsightsPanel({ theme, items, members, scopeMemberId }) {
 
   const essential = ["top", "bottom", "outer", "shoes"];
   const missingCategories = essential.map((cat) => ({ cat, count: scopeItems.filter((i) => i.category === cat).length })).filter((c) => c.count <= 1);
-
   const ownedColorIds = new Set(scopeItems.map((i) => i.color));
   const ownedGroups = new Set([...ownedColorIds].map((id) => colorMeta(id)?.group).filter((g) => g && g !== "neutral"));
   const allGroups = Object.keys(COLOR_GROUP_LABEL);
@@ -390,6 +535,7 @@ function ItemForm({ theme, initial, members, onSave, onClose }) {
   const [note, setNote] = useState(initial?.note || "");
   const [photo, setPhoto] = useState(initial?.photo || null);
   const fileRef = useRef(null);
+  const cameraRef = useRef(null);
 
   function handlePhoto(e) {
     const file = e.target.files?.[0];
@@ -445,9 +591,15 @@ function ItemForm({ theme, initial, members, onSave, onClose }) {
       <div style={{ marginBottom: 14 }}>
         <label style={labelStyle}>写真</label>
         <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} style={{ display: "none" }} />
-        <button onClick={() => fileRef.current?.click()} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 6, border: `1px solid ${theme.line}`, background: "#FFFFFF", fontFamily: theme.fontBody, fontSize: 13, color: theme.inkSoft, cursor: "pointer" }}>
-          <Camera size={15} />{photo ? "写真を変更" : "写真を選ぶ"}
-        </button>
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{ display: "none" }} />
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={() => cameraRef.current?.click()} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 6, border: `1px solid ${theme.line}`, background: "#FFFFFF", fontFamily: theme.fontBody, fontSize: 13, color: theme.inkSoft, cursor: "pointer" }}>
+            <Camera size={15} />写真を撮る
+          </button>
+          <button onClick={() => fileRef.current?.click()} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 6, border: `1px solid ${theme.line}`, background: "#FFFFFF", fontFamily: theme.fontBody, fontSize: 13, color: theme.inkSoft, cursor: "pointer" }}>
+            <Camera size={15} />アルバムから選ぶ
+          </button>
+        </div>
         {photo && <img src={photo} alt="" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6, marginTop: 8 }} />}
       </div>
       <div style={{ marginBottom: 18 }}>
@@ -483,6 +635,7 @@ export default function ClosetApp() {
   const [editingItem, setEditingItem] = useState(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
   const [filter, setFilter] = useState("all");
   const [memberFilter, setMemberFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
@@ -525,9 +678,7 @@ export default function ClosetApp() {
       return rest;
     });
   }
-  function updateMemberPersonalColor(id, personalColor) {
-    setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, personalColor } : m)));
-  }
+  function updateMemberPersonalColor(id, personalColor) { setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, personalColor } : m))); }
 
   return (
     <div style={{ background: theme.stone, minHeight: "100vh", padding: "32px 16px 60px", fontFamily: theme.fontBody }}>
@@ -561,6 +712,10 @@ export default function ClosetApp() {
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+          <button onClick={() => setShowWeather((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, border: `1px solid ${showWeather ? theme.accent : theme.line}`, background: showWeather ? theme.accent : "#FFFFFF", color: showWeather ? "#FFFFFF" : theme.inkSoft, cursor: "pointer", fontFamily: theme.fontBody, fontSize: 12 }}>
+            <CloudSun size={13} />
+            天気とコーデ
+          </button>
           <button onClick={() => setShowInsights((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 999, border: `1px solid ${showInsights ? theme.accent : theme.line}`, background: showInsights ? theme.accent : "#FFFFFF", color: showInsights ? "#FFFFFF" : theme.inkSoft, cursor: "pointer", fontFamily: theme.fontBody, fontSize: 12 }}>
             <Sparkles size={13} />
             コーデ提案
@@ -575,6 +730,7 @@ export default function ClosetApp() {
           </button>
         </div>
 
+        {showWeather && <WeatherPanel theme={theme} items={items} members={members} scopeMemberId={memberFilter} />}
         {showInsights && <InsightsPanel theme={theme} items={items} members={members} scopeMemberId={memberFilter} />}
 
         {showForm && <ItemForm theme={theme} initial={editingItem} members={members} onSave={saveItem} onClose={closeForm} />}
